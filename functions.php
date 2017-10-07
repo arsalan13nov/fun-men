@@ -103,6 +103,37 @@ add_action('init', 'bp_remove_feeds');
 /* Turn off RSS feeds */
 add_filter( 'bp_activity_enable_feeds', '__return_false' );
 
+/**
+ * Filter the except length to 20 words.
+ *
+ * @param int $length Excerpt length.
+ * @return int (Maybe) modified excerpt length.
+ */
+function wpdocs_custom_excerpt_length( $length ) {
+    return 15;
+}
+//add_filter( 'excerpt_length', 'wpdocs_custom_excerpt_length', 999 );
+
+function acf_load_categories_product_lib_page( $field ) {
+    
+    // reset choices
+    $field['choices'] = array();
+    $field['choices'][0] = 'All';
+
+    $all_categories = get_categories( array(
+    'hide_empty' => 0
+    ));
+
+    foreach( $all_categories as $cats ) {
+        $field['choices'][ $cats->term_id ] = $cats->name;
+    }
+
+    // return the field
+    return $field;    
+}
+
+add_filter('acf/load_field/name=category', 'acf_load_categories_product_lib_page');
+
 add_image_size( 'product_library_image_size', 624, 468, true );
 
 ?>

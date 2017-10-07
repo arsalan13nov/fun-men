@@ -46,7 +46,7 @@ get_header();
 				$post_excerpt = apply_filters( 'the_excerpt', get_post_field('post_excerpt', $post_id) );
 				$accessible_posts[$post_id]['excerpt'] = ( !empty( $post_excerpt ) ) 
 				? $post_excerpt
-				: wp_trim_words( get_post_field('post_content', $post_id), 15);
+				: '';
 			
 			}  elseif ( !memb_hasPostAccess( $post_id ) ) {
 				$non_accessible_posts[$post_id]['link'] = get_the_permalink( $post_id ); 
@@ -56,7 +56,7 @@ get_header();
 				$post_excerpt = apply_filters( 'the_excerpt', get_post_field('post_excerpt', $post_id) );
 				$non_accessible_posts[$post_id]['excerpt'] = ( !empty( $post_excerpt ) ) 
 				? $post_excerpt 
-				: wp_trim_words( get_post_field('post_content', $post_id), 15);
+				: '';
 			}
 			// echo $post_id;
 			// var_dump(memb_hasPostAccess( $post_id ));
@@ -475,8 +475,10 @@ div.view-course-outline:hover {
 </style>
 <script>
 	jQuery(window).resize(function(){
-		console.log(jQuery('div.pl-box').width());
 		jQuery('.view-course-outline').width( parseInt( jQuery('div.pl-box').width() - 2 ) );
+	});
+	jQuery(document).ready(function(){
+		jQuery('.view-course-outline').width( parseInt( jQuery('.grid-course').width() - 2 ) );
 	});
 </script>
 <?php get_footer(); ?>
