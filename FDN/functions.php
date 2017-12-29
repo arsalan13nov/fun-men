@@ -121,35 +121,18 @@ add_action( 'wp_footer', 'video_player_mobile_width_fix' );
 
 
 function download_s3file_shortcode( $atts ) {
-	$s3url 	= $atts['s3url'];
+	$s3url 	= str_replace("+"," ",$atts['s3url']);
 	$s3icon = $atts['s3icon'];
   $s3bucket = $atts['s3bucket'];
+  $s3region = $atts['s3region'];
 	$browser = '';
 	$s3title = isset( $atts['s3title'] ) ? $atts['s3title'] : 'Download Now';
-
-// switch ($s3icon) {
-//     case "audio":
-//         $icon = 'fa-volume-up'; 
-//         break;
-//     case "video":
-//         $icon = 'fa-play-circle';
-//         break;
-//     case "pdf":
-//         $icon = 'fa-file-pdf-o';
-//         break;
-//     case "doc":
-//         $icon = 'fa-file-o';
-//         break;
-//     case "sheet":
-//         $icon = 'fa-file-excel-o';
-//         break;    
-//     default:
-//         $icon = 'fa-download';
-// }
-
-	// remove_s3file_shortcodes();
-	// my_add_shortcodes();
-
+  $user_id = get_current_user_id(); 
+  // if( $user_id == 4 ){
+  //     echo '[s3mm type="file" files="'.$s3url.'" '.$s3bucket_code.' '.$s3region_code.' /]';
+  //     exit;
+  // }
+ 
 	if ( isset($_SERVER['HTTP_USER_AGENT']) ) {
     	$agent = $_SERVER['HTTP_USER_AGENT'];    	
 	}
@@ -157,87 +140,71 @@ function download_s3file_shortcode( $atts ) {
     		$browser = 'firefox';
 	}
 
-	$file_url = do_shortcode('[s3file s3url='.$s3url.' s3bucket="'.$s3bucket.'"]');
+  if( !empty($s3region) )
+    $s3region_code = 's3region ="'.$s3region.'"';
+  else
+    $s3region_code = '';
+
+  if( !empty($s3bucket) )
+     $s3bucket_code = 's3bucket ="'.$s3bucket.'"';
+  else
+    $s3bucket_code = '';
+
+  // echo '[s3mm type="file" files="'.$s3url.'" s3bucket="'.$s3bucket.'" '.$s3region_code.' /]';
+  // exit;
+
+	$file_url = do_shortcode('[s3mm type="file" files="'.$s3url.'" '.$s3bucket_code.' '.$s3region_code.' /]');
   
 	if( empty( $browser ) )
 		$download_att = 'download="'.$s3url.'"';
 	else
 		$download_att = '';
 	
-
+  // To add attribute and title in the download file link.
   $dom = new DOMDocument();
   $dom->loadHTML($file_url);
 
-  $node = $dom->getElementsByTagName('a')->item(0);
-  $node->setAttribute( 'download', $s3url );
-  $node->setAttribute( 'class', 's3file-link' );
+  $download_link = $dom->getElementsByTagName('a')->item(0);
+  $download_link->setAttribute( 'download', $s3url );
+  $download_link->setAttribute( 'class', 's3file-link' );
 
   $title = '<span>'.$s3title.'</span>';
   
 
-  $node2 = $dom->createElement("span", $s3title);
-  $node->appendChild($node2);
+  $download_title = $dom->createElement("span", $s3title);
+  $download_link->appendChild($download_title);
 
   // <a target="_blank" class="s3file-link" href="'.$file_url.'" '.$download_att.'>
 	return $content = '<div class="s3file-class">
 						<i class="fa '.$s3icon.'" ></i>
-            '.$dom->saveHTML($node).'
+            '.$dom->saveHTML($download_link).'
 					</div>';
 }
 add_shortcode( 'download_s3file', 'download_s3file_shortcode' );
 
-function my_add_shortcodes() {
-    add_shortcode( 's3file', 'custom_S3MM_shortcode_showFile' );
+function s3mm_custom_html( $html, $atts, $content ) {
+  $link = explode( "?", $html );
+
+  $dom = new DOMDocument();
+  $dom->loadHTML( $html );
+
+  $download_link = $dom->getElementsByTagName('a')->item(0);
+  $href_link = $download_link->getAttribute('href');
+
+  if($href_link != '')
+     $href_link_updated = str_replace("%2B", "%20", $href_link );
+  
+  $download_link->setAttribute( 'href', $href_link_updated );
+
+  return $dom->saveHTML($download_link);
+  // echo '<pre>';
+  // print_r($link);
+  // print_r($content);
+  // exit;
+  // $html_updated = str_replace("%2B", "%20", $link[0]); 
+  // $html = $html_updated . '?'.$link[1];
+  // return $html; 
+
 }
-function custom_S3MM_shortcode_showFile( $atts, $content ){
-	// Process the attributes
-	extract(shortcode_atts(array(
-		's3bucket'		=> '',
-                's3bucketregion' => '',
-		's3accesskey'	=> '',
-		's3secretkey'	=> '',
-		's3expiry'		=> false,
-		's3url'			=>  '',
-		'newtab'		=> false,
-		'attributes'	=> false,
-		'cloudfront'		=> false,
-		'distribution'		=> ''
-	), $atts));
-
-	// Basic check of a URL
-	$s3url = trim($s3url);
-	if (!$s3url) {
-		return sprintf('<p>%s</p>', __('No URL specified.', TX_S3MM));
-	}
-
-	// Ensure we have something to click
-	if (!$content) {
-		$content = $s3url;
-	}
-
-	if ('yes' == $newtab) {
-		$newtab = 'target="_blank"';
-	}
-
-	if(!$cloudfront)
-	{
-		// Work out the URL for the media file
-		$s3auth = S3MM_S3_getFieldsUsingDefaults($s3accesskey, $s3secretkey, $s3bucket, $s3bucketregion, $s3expiry);
-
-		// Using Amazon S3 with an expiring link
-		$url = S3MM_S3_s3_getTemporaryLink($s3auth['accesskey'], $s3auth['secretkey'], $s3auth['bucket'],  $s3auth['bucketregion'], $s3url, $s3auth['expiry']);
-	}else
-	{
-		// Use settings to fill in blank defaults
-		$cfauth = S3MM_CloudFront_getFieldsUsingDefaults($cfkeyPairID, $cfprivateKey, $distribution, $s3expiry);
-
-		// Using Amazon S3 with an expiring link
-		$url = S3MM_CloudFront_getTemporaryLink($cfauth['keyPairID'], $cfauth['privateKey'], $cfauth['distribution'], $s3url, $cfauth['expiry']);
-	}
-
-	return $url;
-}
-function remove_s3file_shortcodes() {
-    remove_shortcode( 's3file' );
-}
+//add_filter( 's3mm_shortcode_html', 's3mm_custom_html', 10, 3 );
 ?>
